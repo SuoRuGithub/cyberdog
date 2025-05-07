@@ -2,34 +2,26 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
+from std_msgs.msg import Float64
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
-
-class RobotDog:
-    def __init__(self):
-        self.is_moving = False
-    
-    def stop(self):
-        self.is_moving = False
-        print("STOP: 检测到绿色球靠近，停止运动！")
-    
-    def move_forward(self):
-        self.is_moving = True
-        print("Running:前进中...")
 
 class CameraSubscriber(Node):
     def __init__(self):
         super().__init__('camera_subscriber')
         self.bridge = CvBridge()
+        self.dogname = "dog"
         self.subscription = self.create_subscription(
             Image,
             '/image_rgb',
             self.listener_callback,
             10)
+        self.publiction = self.create_publisher(Float64 ,f"/{self.dogname}/max_area_pub",10)
+
+        self.timer = self.create_timer(0.05,self.timer_callback)
         self.current_frame = None
-        self.dog = RobotDog()
-        self.dog.move_forward()
+        self.max_area = 0.0
         
         # 初始化滑动条窗口
         cv2.namedWindow("Trackbars")
@@ -43,16 +35,10 @@ class CameraSubscriber(Node):
     def listener_callback(self, msg):
         try:
             self.current_frame = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
-            self.process_frame()
         except Exception as e:
             self.get_logger().error(f'Error processing image: {str(e)}')
 
-    def process_frame(self):
-        if self.current_frame is None:
-            return
-
         frame = self.current_frame.copy()
-        AREA_THRESHOLD = 2000
         
         # 转换到HSV并获取掩膜
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -68,7 +54,7 @@ class CameraSubscriber(Node):
         
         # 检测轮廓
         image,contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        max_area = 0
+        max_area = 0.0
         if contours:
             max_contour = max(contours, key=cv2.contourArea)
             max_area = cv2.contourArea(max_contour)
@@ -77,17 +63,19 @@ class CameraSubscriber(Node):
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
             cv2.putText(frame, f"Area: {max_area}", (x, y-10), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-        # 根据面积控制运动
-        if max_area > AREA_THRESHOLD:
-            self.dog.stop()
-        else:
-            if not self.dog.is_moving:
-                self.dog.move_forward()
-
+        self.max_area = max_area
+        self.get_logger().info(f"GreenBall area: {self.max_area:.5f} meters")
         # 显示图像
         cv2.imshow("Frame", frame)
         cv2.waitKey(1)
+
+        return 
+
+    def timer_callback(self):#发布小狗rgb相机中绿色球的面积
+        area_msg =  Float64()
+        area_msg.data = self.max_area
+        self.publiction.publish(area_msg)
+        return
 
 def main(args=None):
     rclpy.init(args=args)

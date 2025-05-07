@@ -20,12 +20,16 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-               'stand = learning.stand:main',
-               'sensor_msgs = learning.sensor_msgs:main',
-               'step = learning.step:main',
-               'camera = learning.camera:main',
-               'ball_tracker = learning.greenball_tracker:main',
-
+                'stand = learning.stand:main',
+                'sensor_msgs = learning.sensor_msgs:main',
+                'step = learning.step:main',
+                'camera = learning.camera:main',
+                'ball_tracker = learning.greenball_tracker:main',
+                'dog_move = learning.dog_move:main',
+                'ultrasonic_barrier = learning.ultrasonic_barrier:main',
+                'greenballstop = learning.greenballstop:main',
+                'midterm = learning.midterm:main',
+                'avoid = learning.avoid:main'
         ],
     },
 )
